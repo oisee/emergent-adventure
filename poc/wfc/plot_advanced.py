@@ -92,6 +92,25 @@ class Provides(IntFlag):
 
 
 # =============================================================================
+# Plot Twist Types
+# =============================================================================
+
+class TwistType(IntEnum):
+    """Types of plot twists"""
+    NONE = 0
+    ALLY_BETRAYAL = 1       # Ally was enemy all along
+    VILLAIN_SYMPATHETIC = 2  # Villain had good reasons
+    HERO_ORIGIN = 3         # Hero's true identity revealed
+    FALSE_VICTORY = 4       # Defeated wrong enemy / decoy
+    HIDDEN_VILLAIN = 5      # Real villain was hidden
+    PROPHECY_TWIST = 6      # Prophecy meant something else
+    DEAD_ALIVE = 7          # Someone thought dead returns
+    MEMORY_FALSE = 8        # Hero's memories were lies
+    TIME_LOOP = 9           # Events are repeating
+    DREAM_REAL = 10         # "Dream" was real / reality was dream
+
+
+# =============================================================================
 # Genre/Setting System
 # =============================================================================
 
@@ -320,6 +339,135 @@ class PlotNode:
     # For endings
     is_ending: bool = False
     ending_type: str = ""       # "victory", "tragedy", "bittersweet", etc.
+
+    # False endings and twists
+    is_false_ending: bool = False     # Looks like ending but isn't
+    false_ending_reveal: str = ""     # What reveals it's false
+    twist_type: TwistType = TwistType.NONE
+    twist_reveals: str = ""           # What the twist reveals
+    invalidates: Set[int] = field(default_factory=set)  # Nodes this twist invalidates
+    recontextualizes: Dict[int, str] = field(default_factory=dict)  # node_id -> new meaning
+
+
+# =============================================================================
+# Twist Templates
+# =============================================================================
+
+TWIST_TEMPLATES = {
+    TwistType.ALLY_BETRAYAL: [
+        ("The {ally} reveals their true allegiance to the {enemy}!",
+         "Your trusted companion was a spy all along.",
+         {"HAS_ALLY": False}),  # Invalidates ally
+        ("\"Did you really think I was helping you?\" laughs the {ally}.",
+         "Every piece of advice was a trap.",
+         {"HAS_ALLY": False, "HAS_INFO": False}),
+    ],
+
+    TwistType.VILLAIN_SYMPATHETIC: [
+        ("The {enemy} shows you the truth - they were protecting the world.",
+         "The real threat was what you were trying to unleash.",
+         {}),
+        ("\"I did what I had to,\" the {enemy} whispers, dying.",
+         "Their sacrifice saved countless lives you never knew about.",
+         {}),
+    ],
+
+    TwistType.HERO_ORIGIN: [
+        ("You ARE the lost heir of the {place}!",
+         "The birthmark proves everything.",
+         {}),
+        ("The prophecy spoke of YOU all along.",
+         "You are both the hero and the villain's child.",
+         {}),
+    ],
+
+    TwistType.FALSE_VICTORY: [
+        ("That wasn't the real {enemy}... just a puppet!",
+         "The true master still lurks in shadows.",
+         {"VILLAIN_DEAD": False, "QUEST_COMPLETE": False}),
+        ("As the dust settles, you realize - this was only the beginning.",
+         "The {enemy} you killed was merely a servant.",
+         {"VILLAIN_DEAD": False}),
+    ],
+
+    TwistType.HIDDEN_VILLAIN: [
+        ("The {ally} removes their mask - it was THEM all along!",
+         "Every helpful act was manipulation.",
+         {"HAS_ALLY": False}),
+        ("The true {enemy} emerges from the shadows of the {place}.",
+         "You've been fighting the wrong battle.",
+         {}),
+    ],
+
+    TwistType.PROPHECY_TWIST: [
+        ("'Defeat the darkness' meant... become it?!",
+         "The prophecy's true meaning is terrifying.",
+         {}),
+        ("You finally understand - you were meant to FAIL.",
+         "Your failure was the true victory.",
+         {}),
+    ],
+
+    TwistType.DEAD_ALIVE: [
+        ("The {ally} you mourned stands before you, alive!",
+         "Their 'death' was an elaborate ruse.",
+         {"HAS_ALLY": True}),
+        ("The {enemy} rises once more! They cannot truly die.",
+         "Immortality was their secret all along.",
+         {"VILLAIN_DEAD": False}),
+    ],
+
+    TwistType.MEMORY_FALSE: [
+        ("These memories... they're not real. They were IMPLANTED.",
+         "Your entire quest was built on lies.",
+         {"HAS_INFO": False}),
+        ("You never had a home. The {place} never existed.",
+         "Someone created you to believe a false past.",
+         {}),
+    ],
+
+    TwistType.TIME_LOOP: [
+        ("Wait... you've done this before. Many times.",
+         "This cycle has repeated endlessly.",
+         {}),
+        ("The old sage's warning makes sense now - you're trapped in time.",
+         "Breaking the loop is the true quest.",
+         {}),
+    ],
+
+    TwistType.DREAM_REAL: [
+        ("The 'nightmare realm' was reality. This... this is the dream.",
+         "Everything you thought you saved was illusion.",
+         {}),
+        ("You wake up. But which world is real?",
+         "Both realities exist. You must choose.",
+         {}),
+    ],
+}
+
+
+FALSE_ENDING_TEMPLATES = [
+    # (description, reveal_trigger, what_continues)
+    ("Peace returns to the land. Your quest is complete... or is it?",
+     "A distant rumble. The {enemy}'s true fortress awakens.",
+     ProppFunc.LACK),
+
+    ("You return home a hero. The {place} celebrates...",
+     "But the {item} in your pack begins to glow ominously.",
+     ProppFunc.DEPARTURE),
+
+    ("The {enemy} falls. Victory! The crowd cheers!",
+     "\"Fool,\" echoes a voice. \"I am ETERNAL.\"",
+     ProppFunc.STRUGGLE),
+
+    ("At last, the {ally} is saved. Together you escape.",
+     "The {ally}'s eyes flash red for just a moment...",
+     ProppFunc.INTERDICTION),
+
+    ("The curse is lifted. The kingdom rejoices!",
+     "Three days later, the crops begin to wither again.",
+     ProppFunc.LACK),
+]
 
 
 @dataclass
@@ -828,14 +976,344 @@ class AdvancedPlotGenerator:
 
         return end_id
 
+    def generate_with_twist(self,
+                           length: int = 8,
+                           twist_type: TwistType = None) -> bool:
+        """
+        Generate plot with a plot twist.
+
+        The twist recontextualizes earlier events.
+        """
+        self.reset()
+
+        # Build normal plot first
+        if not self._build_backward(ProppFunc.VICTORY, length - 2):
+            return False
+
+        # Choose twist type
+        if twist_type is None:
+            twist_type = random.choice([t for t in TwistType if t != TwistType.NONE])
+
+        templates = TWIST_TEMPLATES.get(twist_type, [])
+        if not templates:
+            return False
+
+        twist_desc, reveal, invalidations = random.choice(templates)
+        twist_desc = self._apply_genre_vocab(twist_desc)
+        reveal = self._apply_genre_vocab(reveal)
+
+        # Find a good place for the twist (after midpoint)
+        midpoint = len(self.plot.nodes) // 2
+        twist_position = random.randint(midpoint, len(self.plot.nodes) - 1)
+
+        # Create twist node
+        twist_node = PlotNode(
+            id=-1,
+            function=ProppFunc.RECOGNITION,  # Twists are revelations
+            requires=Requirement.AT_GOAL,
+            provides=Provides.RECOGNIZED,
+            description=twist_desc,
+            location_hint="ruins",  # Twists often in mysterious places
+            twist_type=twist_type,
+            twist_reveals=reveal,
+        )
+
+        # Find nodes to invalidate based on twist type
+        if twist_type == TwistType.ALLY_BETRAYAL:
+            for node in self.plot.nodes:
+                if node.provides & Provides.HAS_ALLY:
+                    twist_node.invalidates.add(node.id)
+                    twist_node.recontextualizes[node.id] = "The ally was deceiving you"
+
+        elif twist_type == TwistType.FALSE_VICTORY:
+            for node in self.plot.nodes:
+                if node.function == ProppFunc.VICTORY:
+                    twist_node.invalidates.add(node.id)
+                    twist_node.recontextualizes[node.id] = "This victory was hollow"
+
+        elif twist_type == TwistType.HIDDEN_VILLAIN:
+            for node in self.plot.nodes:
+                if node.provides & Provides.HAS_ALLY:
+                    twist_node.recontextualizes[node.id] = "They were watching you all along"
+
+        twist_id = self.plot.add_node(twist_node)
+
+        # Connect twist to the story
+        if twist_position < len(self.plot.nodes) - 1:
+            self.plot.add_edge(twist_position, twist_id)
+
+        # Add continuation after twist (new goal)
+        continuation = PlotNode(
+            id=-1,
+            function=ProppFunc.STRUGGLE,
+            requires=Requirement.RECOGNIZED,
+            provides=Provides.VILLAIN_WEAK,
+            description=self._apply_genre_vocab("Now you face the TRUE {enemy}!"),
+            location_hint="dungeon",
+        )
+        cont_id = self.plot.add_node(continuation)
+        self.plot.add_edge(twist_id, cont_id)
+
+        # Add real ending
+        final = PlotNode(
+            id=-1,
+            function=ProppFunc.VICTORY,
+            requires=Requirement.VILLAIN_WEAK | Requirement.RECOGNIZED,
+            provides=Provides.QUEST_COMPLETE | Provides.VILLAIN_DEAD,
+            description=self._apply_genre_vocab("At last, the TRUE {enemy} is defeated!"),
+            location_hint="dungeon",
+            is_ending=True,
+            ending_type="TRUE_VICTORY",
+        )
+        final_id = self.plot.add_node(final)
+        self.plot.add_edge(cont_id, final_id)
+        self.plot.endings.append(final_id)
+
+        return True
+
+    def generate_with_false_ending(self,
+                                   length: int = 10,
+                                   num_false_endings: int = 1) -> bool:
+        """
+        Generate plot with false ending(s).
+
+        Player thinks they've won, but the story continues.
+        """
+        self.reset()
+
+        for i in range(num_false_endings):
+            # Build to false ending
+            segment_length = length // (num_false_endings + 1)
+
+            if i == 0:
+                if not self._build_backward(ProppFunc.VICTORY, segment_length):
+                    return False
+            else:
+                # Continue from previous reveal
+                if not self._continue_from_reveal(segment_length):
+                    continue
+
+            # Mark last victory as false ending
+            for node in reversed(self.plot.nodes):
+                if node.function == ProppFunc.VICTORY and not node.is_false_ending:
+                    node.is_false_ending = True
+                    node.is_ending = False  # Not a real ending!
+
+                    # Choose reveal
+                    template = random.choice(FALSE_ENDING_TEMPLATES)
+                    false_desc, reveal, next_func = template
+
+                    node.description = self._apply_genre_vocab(false_desc)
+                    node.false_ending_reveal = self._apply_genre_vocab(reveal)
+
+                    # Add reveal node
+                    reveal_node = PlotNode(
+                        id=-1,
+                        function=next_func,
+                        requires=Requirement.QUEST_COMPLETE,
+                        provides=Provides.NONE,
+                        description=node.false_ending_reveal,
+                        location_hint=node.location_hint,
+                    )
+                    reveal_id = self.plot.add_node(reveal_node)
+                    self.plot.add_edge(node.id, reveal_id)
+                    break
+
+        # Add real ending
+        final = PlotNode(
+            id=-1,
+            function=ProppFunc.VICTORY,
+            requires=Requirement.VILLAIN_WEAK | Requirement.HAS_WEAPON,
+            provides=Provides.QUEST_COMPLETE | Provides.VILLAIN_DEAD,
+            description=self._apply_genre_vocab("This time, the {enemy} falls FOR REAL!"),
+            location_hint="dungeon",
+            is_ending=True,
+            ending_type="FINAL_VICTORY",
+        )
+        final_id = self.plot.add_node(final)
+
+        # Connect from last non-ending node
+        for node in reversed(self.plot.nodes[:-1]):
+            if not node.is_ending:
+                self.plot.add_edge(node.id, final_id)
+                break
+
+        self.plot.endings.append(final_id)
+
+        return True
+
+    def _continue_from_reveal(self, length: int) -> bool:
+        """Continue plot after a false ending reveal"""
+        # Find last reveal node
+        last_reveal = None
+        for node in reversed(self.plot.nodes):
+            if node.false_ending_reveal or node.function == ProppFunc.LACK:
+                last_reveal = node
+                break
+
+        if not last_reveal:
+            return False
+
+        # Build new segment
+        for _ in range(length):
+            # Find function that can follow
+            func = random.choice([
+                ProppFunc.DEPARTURE, ProppFunc.ACQUISITION,
+                ProppFunc.DONOR_TEST, ProppFunc.GUIDANCE,
+                ProppFunc.STRUGGLE
+            ])
+
+            templates = PLOT_TEMPLATES.get(func, [])
+            if not templates:
+                continue
+
+            req, prov, desc, loc = random.choice(templates)
+
+            new_node = PlotNode(
+                id=-1,
+                function=func,
+                requires=req,
+                provides=prov,
+                description=self._apply_genre_vocab(desc),
+                location_hint=loc,
+            )
+            new_id = self.plot.add_node(new_node)
+            self.plot.add_edge(last_reveal.id, new_id)
+            last_reveal = new_node
+
+        return True
+
+    def generate_epic(self,
+                     acts: int = 3,
+                     nodes_per_act: int = 4,
+                     twists: int = 1,
+                     false_endings: int = 1) -> bool:
+        """
+        Generate epic multi-act plot with twists and false endings.
+
+        Structure:
+        - Act 1: Setup and departure
+        - Act 2: Trials, false victory, twist
+        - Act 3: True confrontation and resolution
+        """
+        self.reset()
+
+        total_nodes = 0
+
+        # ACT 1: Setup
+        act1_funcs = [ProppFunc.EQUILIBRIUM, ProppFunc.LACK,
+                      ProppFunc.INTERDICTION, ProppFunc.DEPARTURE]
+
+        for func in act1_funcs[:nodes_per_act]:
+            templates = PLOT_TEMPLATES.get(func, [])
+            if templates:
+                req, prov, desc, loc = random.choice(templates)
+                node = PlotNode(
+                    id=-1, function=func, requires=req, provides=prov,
+                    description=self._apply_genre_vocab(desc),
+                    location_hint=loc,
+                )
+                node_id = self.plot.add_node(node)
+                if total_nodes > 0:
+                    self.plot.add_edge(total_nodes - 1, node_id)
+                total_nodes += 1
+
+        # ACT 2: Trials and false victory
+        act2_funcs = [ProppFunc.DONOR_TEST, ProppFunc.ACQUISITION,
+                      ProppFunc.GUIDANCE, ProppFunc.STRUGGLE, ProppFunc.VICTORY]
+
+        for func in act2_funcs[:nodes_per_act + 1]:
+            templates = PLOT_TEMPLATES.get(func, [])
+            if templates:
+                req, prov, desc, loc = random.choice(templates)
+                node = PlotNode(
+                    id=-1, function=func, requires=req, provides=prov,
+                    description=self._apply_genre_vocab(desc),
+                    location_hint=loc,
+                )
+
+                # Make victory a false ending
+                if func == ProppFunc.VICTORY and false_endings > 0:
+                    template = random.choice(FALSE_ENDING_TEMPLATES)
+                    false_desc, reveal, _ = template
+                    node.description = self._apply_genre_vocab(false_desc)
+                    node.is_false_ending = True
+                    node.false_ending_reveal = self._apply_genre_vocab(reveal)
+                    false_endings -= 1
+
+                node_id = self.plot.add_node(node)
+                if total_nodes > 0:
+                    self.plot.add_edge(total_nodes - 1, node_id)
+                total_nodes += 1
+
+        # Add twist after false victory
+        if twists > 0:
+            twist_type = random.choice([
+                TwistType.ALLY_BETRAYAL, TwistType.FALSE_VICTORY,
+                TwistType.HIDDEN_VILLAIN, TwistType.VILLAIN_SYMPATHETIC
+            ])
+            templates = TWIST_TEMPLATES.get(twist_type, [])
+            if templates:
+                twist_desc, reveal, _ = random.choice(templates)
+                twist = PlotNode(
+                    id=-1, function=ProppFunc.RECOGNITION,
+                    requires=Requirement.QUEST_COMPLETE,
+                    provides=Provides.RECOGNIZED,
+                    description=self._apply_genre_vocab(twist_desc),
+                    location_hint="ruins",
+                    twist_type=twist_type,
+                    twist_reveals=self._apply_genre_vocab(reveal),
+                )
+                twist_id = self.plot.add_node(twist)
+                self.plot.add_edge(total_nodes - 1, twist_id)
+                total_nodes += 1
+
+        # ACT 3: True confrontation
+        act3_funcs = [ProppFunc.PURSUIT, ProppFunc.BRANDING,
+                      ProppFunc.STRUGGLE, ProppFunc.VICTORY, ProppFunc.RETURN]
+
+        for func in act3_funcs[:nodes_per_act + 1]:
+            templates = PLOT_TEMPLATES.get(func, [])
+            if templates:
+                req, prov, desc, loc = random.choice(templates)
+
+                # Modify for "true" versions
+                if func == ProppFunc.VICTORY:
+                    desc = "The TRUE {enemy} is finally defeated!"
+                elif func == ProppFunc.RETURN:
+                    desc = "At long last, the hero returns - truly victorious."
+
+                node = PlotNode(
+                    id=-1, function=func, requires=req, provides=prov,
+                    description=self._apply_genre_vocab(desc),
+                    location_hint=loc,
+                    is_ending=(func == ProppFunc.RETURN),
+                    ending_type="EPIC_VICTORY" if func == ProppFunc.RETURN else "",
+                )
+                node_id = self.plot.add_node(node)
+                if total_nodes > 0:
+                    self.plot.add_edge(total_nodes - 1, node_id)
+                total_nodes += 1
+
+                if func == ProppFunc.RETURN:
+                    self.plot.endings.append(node_id)
+
+        return total_nodes >= acts * nodes_per_act
+
     def get_summary(self) -> str:
         """Get human-readable plot summary"""
+        # Count special nodes
+        twists = [n for n in self.plot.nodes if n.twist_type != TwistType.NONE]
+        false_ends = [n for n in self.plot.nodes if n.is_false_ending]
+
         lines = [
             f"=== {self.genre.name} Plot ===",
             f"Mood: {self.genre.mood}",
             f"Nodes: {len(self.plot.nodes)}",
             f"Branches: {len(self.plot.branches)}",
             f"Endings: {len(self.plot.endings)}",
+            f"Twists: {len(twists)}",
+            f"False Endings: {len(false_ends)}",
             "",
             "Story Structure:",
             "-" * 40,
@@ -847,9 +1325,26 @@ class AdvancedPlotGenerator:
             lines.append(f"\nPath {i+1}:")
             for node_id in path:
                 node = self.plot.nodes[node_id]
-                marker = " [END]" if node.is_ending else ""
-                marker += " [BRANCH]" if node.is_branch_point else ""
-                lines.append(f"  {node.function.name}: {node.description[:50]}...{marker}")
+                markers = []
+                if node.is_ending:
+                    markers.append("END")
+                if node.is_false_ending:
+                    markers.append("FALSE END!")
+                if node.is_branch_point:
+                    markers.append("BRANCH")
+                if node.twist_type != TwistType.NONE:
+                    markers.append(f"TWIST:{node.twist_type.name}")
+
+                marker_str = f" [{', '.join(markers)}]" if markers else ""
+                lines.append(f"  {node.function.name}: {node.description[:45]}...{marker_str}")
+
+                # Show twist reveal
+                if node.twist_reveals:
+                    lines.append(f"    ↳ Reveals: {node.twist_reveals[:40]}...")
+
+                # Show false ending reveal
+                if node.false_ending_reveal:
+                    lines.append(f"    ↳ But then: {node.false_ending_reveal[:40]}...")
 
         if len(paths) > 5:
             lines.append(f"\n... and {len(paths) - 5} more paths")
@@ -863,34 +1358,48 @@ class AdvancedPlotGenerator:
 
 def demo():
     """Demo advanced plot generation"""
-    print("=== Advanced Plot Generator Demo ===\n")
+    print("=" * 60)
+    print("ADVANCED PLOT GENERATOR DEMO")
+    print("=" * 60)
 
-    # Test genre mixing
-    print("1. Mixed Genre (Solarpunk + Hopepunk):")
-    mixed = mix_genres("solarpunk", "hopepunk", weights=[0.6, 0.4])
-    print(f"   Palette: {mixed.palette}")
-    print(f"   Vocab: {mixed.vocab}")
-    print()
-
-    # Test linear plot
-    print("2. Linear Fantasy Plot:")
-    gen = AdvancedPlotGenerator(GENRES["fantasy"], seed=42)
-    gen.generate_linear(length=6)
+    # Test plot with twist
+    print("\n1. PLOT WITH TWIST (Dark Fantasy + Ally Betrayal):")
+    print("-" * 50)
+    gen = AdvancedPlotGenerator(GENRES["dark_fantasy"], seed=42)
+    gen.generate_with_twist(length=8, twist_type=TwistType.ALLY_BETRAYAL)
     print(gen.get_summary())
-    print()
 
-    # Test branching plot
-    print("3. Branching Dark Fantasy Plot:")
-    gen = AdvancedPlotGenerator(GENRES["dark_fantasy"], seed=123)
-    gen.generate_branching(main_length=6, num_branches=2)
+    # Test false ending
+    print("\n\n2. PLOT WITH FALSE ENDING (Fantasy):")
+    print("-" * 50)
+    gen = AdvancedPlotGenerator(GENRES["fantasy"], seed=123)
+    gen.generate_with_false_ending(length=10, num_false_endings=1)
     print(gen.get_summary())
-    print()
 
-    # Test multi-ending
-    print("4. Multi-Ending Mystery Plot:")
+    # Test epic multi-act
+    print("\n\n3. EPIC 3-ACT PLOT (Mystery + Twist + False Ending):")
+    print("-" * 50)
     gen = AdvancedPlotGenerator(GENRES["mystery"], seed=456)
-    gen.generate_multi_ending(length=8, num_endings=3)
+    gen.generate_epic(acts=3, nodes_per_act=4, twists=1, false_endings=1)
     print(gen.get_summary())
+
+    # Test mixed genre epic
+    print("\n\n4. MIXED GENRE EPIC (Solarpunk + Hopepunk):")
+    print("-" * 50)
+    mixed = mix_genres("solarpunk", "hopepunk", weights=[0.6, 0.4])
+    gen = AdvancedPlotGenerator(mixed, seed=789)
+    gen.generate_epic(acts=3, nodes_per_act=3, twists=1, false_endings=1)
+    print(gen.get_summary())
+
+    # Show twist types
+    print("\n\n5. AVAILABLE TWIST TYPES:")
+    print("-" * 50)
+    for twist in TwistType:
+        if twist != TwistType.NONE:
+            templates = TWIST_TEMPLATES.get(twist, [])
+            if templates:
+                example = templates[0][0][:50]
+                print(f"  {twist.name}: \"{example}...\"")
 
 
 if __name__ == "__main__":
