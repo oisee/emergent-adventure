@@ -3,6 +3,7 @@ Text Adventure Engine
 
 Allows exploration of generated worlds.
 Simple command parser and game state management.
+Supports advanced plots with twists and false endings.
 """
 
 from dataclasses import dataclass, field
@@ -11,9 +12,13 @@ from enum import Enum, auto
 import random
 import textwrap
 
-from .integration import WorldGenerator
+from .integration import WorldGenerator, PlotType
 from .geography import TileType, TILE_CHARS, PASSABLE_TILES
-from .plot import ProppFunction, PROPP_NAMES, PlotNode
+from .plot import ProppFunction, PROPP_NAMES, PlotNode, Requirement, Provides
+from .plot_advanced import (
+    ProppFunc, TwistType, GENRES,
+    PROPP_NAMES as ADV_PROPP_NAMES
+)
 from .core import find_path
 from .landscape import LandscapeRenderer
 
@@ -104,6 +109,7 @@ class GameEngine:
     Text adventure game engine.
 
     Manages game state, player movement, and plot progression.
+    Supports advanced plots with twists and false endings.
     """
 
     # World
@@ -120,6 +126,11 @@ class GameEngine:
     current_event: Optional[int] = None
     plot_state: int = 0  # Bitmask of completed requirements
 
+    # Advanced plot state
+    twist_revealed: bool = False
+    false_endings_seen: int = 0
+    in_false_ending: bool = False
+
     # Game state
     state: GameState = GameState.EXPLORING
     turn_count: int = 0
@@ -131,14 +142,22 @@ class GameEngine:
     landscape: LandscapeRenderer = field(default_factory=lambda: LandscapeRenderer(50, 12))
     facing: str = 'N'  # Current facing direction
 
-    def initialize(self, seed: int = None, width: int = 16, height: int = 12) -> bool:
+    # Plot type for display
+    plot_type: PlotType = PlotType.SIMPLE
+    genre_name: str = ""
+
+    def initialize(self, seed: int = None, width: int = 16, height: int = 12,
+                   plot_type: PlotType = PlotType.SIMPLE,
+                   genre: str = None) -> bool:
         """Initialize game with generated world"""
         if seed is None:
             seed = random.randint(0, 999999)
 
         self.world_gen = WorldGenerator(width=width, height=height, seed=seed)
+        self.plot_type = plot_type
+        self.genre_name = genre or ""
 
-        if not self.world_gen.generate():
+        if not self.world_gen.generate(plot_type=plot_type, genre=genre):
             return False
 
         # Find starting position (LACK event location or first passable)
@@ -157,13 +176,25 @@ class GameEngine:
         self.turn_count = 0
         self.output_buffer = []
 
+        # Reset advanced plot state
+        self.twist_revealed = False
+        self.false_endings_seen = 0
+        self.in_false_ending = False
+
         return True
 
     def _find_start_position(self) -> Optional[Tuple[int, int]]:
-        """Find starting position (prefer LACK event location)"""
-        # Look for LACK event
-        for node in self.world_gen.world.plot.nodes:
-            if node.function == ProppFunction.LACK:
+        """Find starting position (prefer LACK/EQUILIBRIUM event location)"""
+        # Get nodes from either simple or advanced plot
+        nodes = self.world_gen.world.get_plot_nodes()
+
+        # Look for LACK or EQUILIBRIUM event (story beginning)
+        for node in nodes:
+            func = node.function
+            # Check both simple and advanced function types
+            is_start = (func == ProppFunction.LACK if isinstance(func, ProppFunction)
+                       else func in (ProppFunc.LACK, ProppFunc.EQUILIBRIUM))
+            if is_start:
                 pos = self.world_gen.world.node_locations.get(node.id)
                 if pos:
                     return pos
@@ -243,11 +274,14 @@ class GameEngine:
 
         return exits
 
-    def _get_event_at_position(self, x: int, y: int) -> Optional[PlotNode]:
-        """Get plot event at position"""
+    def _get_event_at_position(self, x: int, y: int) -> Optional[object]:
+        """Get plot event at position (works with both simple and advanced plots)"""
+        nodes = self.world_gen.world.get_plot_nodes()
+        node_map = {n.id: n for n in nodes}
+
         for node_id, pos in self.world_gen.world.node_locations.items():
             if pos == (x, y):
-                return self.world_gen.world.plot.nodes[node_id]
+                return node_map.get(node_id)
         return None
 
     def move(self, direction: str) -> bool:
@@ -303,12 +337,12 @@ class GameEngine:
             self.output("You have already done what needed to be done here.")
             return False
 
-        # Check requirements
-        if (event.requires & self.plot_state) != event.requires:
+        # Check requirements (be lenient for advanced plots)
+        req = event.requires
+        if req and (req & self.plot_state) != req:
             self.output("You are not yet ready for this challenge.")
             # Hint at what's needed
-            from .plot import Requirement
-            missing = event.requires & ~self.plot_state
+            missing = req & ~self.plot_state
             hints = []
             if missing & Requirement.HAS_WEAPON:
                 hints.append("a weapon")
@@ -333,48 +367,134 @@ class GameEngine:
         # Describe completion
         self._describe_event_completion(event)
 
-        # Check for victory
-        if event.function == ProppFunction.VICTORY:
-            self.output("\n*** VICTORY! Your quest is complete! ***")
+        # Handle twist reveals
+        if hasattr(event, 'twist_type') and event.twist_type and event.twist_type != TwistType.NONE:
+            self._handle_twist_reveal(event)
+
+        # Handle false endings
+        if hasattr(event, 'is_false_ending') and event.is_false_ending:
+            self._handle_false_ending(event)
+            return True  # Don't check for victory yet
+
+        # Check for victory (simple plot or final true victory)
+        func = event.function
+        is_victory = (func == ProppFunction.VICTORY if isinstance(func, ProppFunction)
+                     else func == ProppFunc.VICTORY)
+        is_return = (func == ProppFunction.RETURN if isinstance(func, ProppFunction)
+                    else func == ProppFunc.RETURN)
+
+        if is_victory or (hasattr(event, 'is_ending') and event.is_ending):
+            if not self.in_false_ending:
+                self.output("\n*** VICTORY! Your quest is complete! ***")
+                self.state = GameState.VICTORY
+        elif is_return and hasattr(event, 'is_ending') and event.is_ending:
+            self.output("\n*** THE END - Your epic journey is complete! ***")
             self.state = GameState.VICTORY
 
         return True
 
-    def _describe_event_completion(self, event: PlotNode):
-        """Describe completing a plot event"""
-        from .plot import Provides
+    def _handle_twist_reveal(self, event):
+        """Handle a plot twist being revealed"""
+        self.twist_revealed = True
 
         self.output("")
+        self.output("=" * 40)
+        self.output("*** PLOT TWIST! ***")
+        self.output("=" * 40)
 
-        if event.function == ProppFunction.LACK:
-            self.output("You learn of the threat facing the land.")
-            self.output("Your journey begins!")
-        elif event.function == ProppFunction.DEPARTURE:
-            self.output("You set forth on your quest.")
-            self.output("The road ahead is long, but your heart is determined.")
-        elif event.function == ProppFunction.DONOR_TEST:
-            self.output("You have proven your worth!")
-        elif event.function == ProppFunction.ACQUISITION:
-            if event.provides & Provides.HAS_WEAPON:
+        if hasattr(event, 'twist_reveals') and event.twist_reveals:
+            self.output(event.twist_reveals)
+
+        # Show what's been invalidated
+        if hasattr(event, 'recontextualizes'):
+            for node_id, context in event.recontextualizes.items():
+                self.output(f"  - {context}")
+
+        self.output("")
+        self.output("The truth changes everything...")
+        self.output("")
+
+    def _handle_false_ending(self, event):
+        """Handle a false ending"""
+        self.false_endings_seen += 1
+        self.in_false_ending = True
+
+        self.output("")
+        self.output("=" * 40)
+        self.output("*** YOU THINK YOU'VE WON... ***")
+        self.output("=" * 40)
+        self.output("")
+
+        if hasattr(event, 'false_ending_reveal') and event.false_ending_reveal:
+            self.output("But wait...")
+            self.output(event.false_ending_reveal)
+            self.output("")
+            self.output("The quest continues!")
+            self.in_false_ending = False  # Ready for next chapter
+
+    def _describe_event_completion(self, event):
+        """Describe completing a plot event (handles both simple and advanced functions)"""
+        self.output("")
+
+        # Use the event's description directly if available
+        if hasattr(event, 'description') and event.description:
+            self.output(event.description)
+
+        # Get function for comparison
+        func = event.function
+
+        # Check function type (simple ProppFunction or advanced ProppFunc)
+        is_simple = isinstance(func, ProppFunction)
+
+        # Map function names for comparison
+        func_name = func.name if hasattr(func, 'name') else str(func)
+
+        # Handle inventory for acquisition events
+        if func_name in ('ACQUISITION', 'DONOR_TEST'):
+            provides = event.provides
+            if provides & Provides.HAS_WEAPON:
                 self.output("You receive a mighty weapon!")
-                self.inventory.append("magic sword")
-            elif event.provides & Provides.HAS_KEY:
+                if "magic sword" not in self.inventory:
+                    self.inventory.append("magic sword")
+            elif provides & Provides.HAS_KEY:
                 self.output("You obtain a mysterious key!")
-                self.inventory.append("ancient key")
-            elif event.provides & Provides.HAS_INFO:
-                self.output("Ancient wisdom is revealed to you!")
-            elif event.provides & Provides.HAS_ALLY:
+                if "ancient key" not in self.inventory:
+                    self.inventory.append("ancient key")
+            elif provides & Provides.HAS_ALLY:
                 self.output("A loyal companion joins your quest!")
-                self.inventory.append("loyal companion")
-        elif event.function == ProppFunction.GUIDANCE:
+                if "loyal companion" not in self.inventory:
+                    self.inventory.append("loyal companion")
+            elif provides & Provides.HAS_INFO:
+                self.output("Ancient wisdom is revealed to you!")
+
+        # Additional flavor for specific functions
+        if func_name == 'EQUILIBRIUM':
+            self.output("Peace reigns... for now.")
+        elif func_name == 'LACK':
+            self.output("Your journey begins!")
+        elif func_name == 'INTERDICTION':
+            self.output("A warning has been given...")
+        elif func_name == 'VIOLATION':
+            self.output("Rules are meant to be broken.")
+        elif func_name == 'DEPARTURE':
+            self.output("The road ahead is long, but your heart is determined.")
+        elif func_name == 'GUIDANCE':
             self.output("The path to your goal becomes clear.")
-        elif event.function == ProppFunction.STRUGGLE:
-            self.output("Battle is joined! You fight with all your might!")
-        elif event.function == ProppFunction.VICTORY:
-            self.output("The villain is defeated!")
-            self.output("Peace returns to the land.")
-        elif event.function == ProppFunction.RETURN:
-            self.output("You return home, forever changed by your journey.")
+        elif func_name == 'STRUGGLE':
+            self.output("Battle is joined!")
+        elif func_name == 'BRANDING':
+            self.output("You bear the mark of your deeds.")
+        elif func_name == 'PURSUIT':
+            self.output("They're after you!")
+        elif func_name == 'RESCUE':
+            self.output("Someone is saved from peril!")
+        elif func_name == 'RECOGNITION':
+            self.output("The truth is revealed!")
+        elif func_name == 'PUNISHMENT':
+            self.output("Justice is served.")
+        elif func_name in ('VICTORY', 'RETURN'):
+            if not (hasattr(event, 'is_false_ending') and event.is_false_ending):
+                self.output("Peace returns to the land.")
 
         self.output("")
 
@@ -420,15 +540,46 @@ class GameEngine:
             self.output(line)
 
     def show_quest(self):
-        """Show quest progress"""
+        """Show quest progress (handles both simple and advanced plots)"""
         self.output("Quest Progress:")
+        if self.genre_name:
+            self.output(f"Genre: {self.genre_name}")
+        if self.plot_type != PlotType.SIMPLE:
+            self.output(f"Type: {self.plot_type.name}")
         self.output("-" * 30)
 
-        order = self.world_gen.world.plot.topological_sort()
+        # Get order from appropriate plot
+        if self.world_gen.world.advanced_plot:
+            order = self.world_gen.world.advanced_plot.topological_sort()
+            propp_names = ADV_PROPP_NAMES
+        else:
+            order = self.world_gen.world.plot.topological_sort()
+            propp_names = PROPP_NAMES
+
+        nodes = self.world_gen.world.get_plot_nodes()
+        node_map = {n.id: n for n in nodes}
+
         for node_id in order:
-            node = self.world_gen.world.plot.nodes[node_id]
+            node = node_map.get(node_id)
+            if node is None:
+                continue
+
             status = "[X]" if node_id in self.completed_events else "[ ]"
-            self.output(f"{status} {PROPP_NAMES[node.function]}: {node.description[:40]}...")
+            func_name = propp_names.get(node.function, str(node.function))
+            desc = node.description[:40] if node.description else "..."
+
+            # Add markers for special nodes
+            markers = ""
+            if hasattr(node, 'is_twist') and node.is_twist:
+                markers += " [TWIST]"
+            elif hasattr(node, 'twist_type') and node.twist_type and node.twist_type != TwistType.NONE:
+                markers += " [TWIST]"
+            if hasattr(node, 'is_false_ending') and node.is_false_ending:
+                markers += " [FALSE END]"
+            if hasattr(node, 'is_ending') and node.is_ending:
+                markers += " [END]"
+
+            self.output(f"{status} {func_name}: {desc}...{markers}")
 
     def show_landscape(self):
         """Show Lords of Midnight-style landscape view"""
@@ -529,22 +680,40 @@ Commands:
         return True
 
 
-def play_text_adventure(seed: int = None):
+def play_text_adventure(seed: int = None,
+                        plot_type: PlotType = PlotType.SIMPLE,
+                        genre: str = None):
     """Play text adventure in terminal"""
     print("=" * 60)
     print("EMERGENT ADVENTURE")
     print("A Procedurally Generated Text Adventure")
     print("=" * 60)
+
+    # Show game settings
+    if plot_type != PlotType.SIMPLE:
+        print(f"Plot Type: {plot_type.name}")
+    if genre:
+        print(f"Genre: {genre}")
     print()
 
     engine = GameEngine()
 
     print("Generating world...")
-    if not engine.initialize(seed=seed, width=16, height=12):
+    if not engine.initialize(seed=seed, width=16, height=12,
+                            plot_type=plot_type, genre=genre):
         print("Failed to generate world!")
         return
 
     print(f"World generated! (seed: {engine.world_gen.world.geo_seed})")
+
+    # Show plot metadata
+    world = engine.world_gen.world
+    if world.has_twist:
+        twist_name = world.twist_type.name if world.twist_type else "UNKNOWN"
+        print(f"This story contains a {twist_name} twist!")
+    if world.has_false_ending:
+        print("Beware of false victories...")
+
     print()
     print("Type 'help' for commands.")
     print("-" * 40)
@@ -567,15 +736,63 @@ def play_text_adventure(seed: int = None):
             print("\nFarewell!")
             break
 
+    # Game over stats
     print()
     print("=" * 60)
     print(f"Game Over - Turns: {engine.turn_count}")
     print(f"Locations visited: {len(engine.visited)}")
-    print(f"Events completed: {len(engine.completed_events)}/{len(engine.world_gen.world.plot.nodes)}")
+
+    nodes = engine.world_gen.world.get_plot_nodes()
+    print(f"Events completed: {len(engine.completed_events)}/{len(nodes)}")
+
+    if engine.twist_revealed:
+        print("Twist revealed: Yes!")
+    if engine.false_endings_seen > 0:
+        print(f"False endings encountered: {engine.false_endings_seen}")
+
     print("=" * 60)
 
 
 if __name__ == "__main__":
     import sys
-    seed = int(sys.argv[1]) if len(sys.argv) > 1 else None
-    play_text_adventure(seed)
+
+    # Parse arguments: seed [plot_type] [genre]
+    seed = None
+    plot_type = PlotType.SIMPLE
+    genre = None
+
+    args = sys.argv[1:]
+
+    # Check for help
+    if args and args[0] in ('-h', '--help', 'help'):
+        print("Usage: python -m wfc.engine [seed] [plot_type] [genre]")
+        print()
+        print("Plot types: simple, branching, twist, false, epic")
+        print("Genres: fantasy, solarpunk, hopepunk, dark_fantasy, mystery")
+        print()
+        print("Examples:")
+        print("  python -m wfc.engine 42")
+        print("  python -m wfc.engine 42 twist fantasy")
+        print("  python -m wfc.engine 42 epic dark_fantasy")
+        sys.exit(0)
+
+    if args:
+        try:
+            seed = int(args[0])
+        except ValueError:
+            pass
+
+    if len(args) > 1:
+        type_map = {
+            'simple': PlotType.SIMPLE,
+            'branching': PlotType.BRANCHING,
+            'twist': PlotType.WITH_TWIST,
+            'false': PlotType.WITH_FALSE_ENDING,
+            'epic': PlotType.EPIC
+        }
+        plot_type = type_map.get(args[1].lower(), PlotType.SIMPLE)
+
+    if len(args) > 2:
+        genre = args[2].lower()
+
+    play_text_adventure(seed=seed, plot_type=plot_type, genre=genre)

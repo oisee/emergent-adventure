@@ -257,6 +257,474 @@ GENRES = {
         endings=["RECOGNITION", "PUNISHMENT", "RETURN"],
         mood="mysterious",
     ),
+
+    # =========================================================================
+    # SOLAR / LIGHT / HOPEFUL GENRES
+    # =========================================================================
+
+    "fairytale": Genre(
+        name="Fairytale",
+        description="Wonder, magic, and happily ever after",
+        palette={
+            "primary": "#FFB6C1",    # Light pink
+            "secondary": "#E6E6FA",  # Lavender
+            "accent": "#FFD700",     # Gold
+            "danger": "#9370DB",     # Medium purple
+            "water": "#87CEFA",      # Light sky blue
+            "magic": "#FF69B4",      # Hot pink
+        },
+        vocab={
+            "weapon": "magic wand",
+            "enemy": "wicked witch",
+            "ally": "fairy godmother",
+            "goal": "enchanted castle",
+            "item": "glass slipper",
+            "place": "once upon a time",
+        },
+        tile_weights={"CASTLE": 1.5, "FOREST": 1.3, "CLEARING": 1.4, "VILLAGE": 1.2},
+        endings=["RETURN", "RECOGNITION", "RESCUE"],
+        mood="hopeful",
+    ),
+
+    "cozy": Genre(
+        name="Cozy",
+        description="Comfort, warmth, and gentle adventures",
+        palette={
+            "primary": "#DEB887",    # Burlywood
+            "secondary": "#F5DEB3",  # Wheat
+            "accent": "#CD853F",     # Peru
+            "danger": "#D2691E",     # Chocolate
+            "water": "#B0C4DE",      # Light steel blue
+            "magic": "#FFDAB9",      # Peach puff
+        },
+        vocab={
+            "weapon": "grandmother's wisdom",
+            "enemy": "cold winter",
+            "ally": "friendly neighbor",
+            "goal": "warm hearth",
+            "item": "handknit blanket",
+            "place": "cottage by the meadow",
+        },
+        tile_weights={"VILLAGE": 1.5, "TAVERN": 1.4, "CLEARING": 1.3, "BRIDGE": 1.2},
+        endings=["RETURN", "RECOGNITION", "RESCUE"],
+        mood="hopeful",
+    ),
+
+    "pastoral": Genre(
+        name="Pastoral",
+        description="Rural beauty, nature, and simple joys",
+        palette={
+            "primary": "#90EE90",    # Light green
+            "secondary": "#F0FFF0",  # Honeydew
+            "accent": "#FFD700",     # Gold (sunlight)
+            "danger": "#8B4513",     # Saddle brown
+            "water": "#00CED1",      # Dark turquoise
+            "magic": "#98FB98",      # Pale green
+        },
+        vocab={
+            "weapon": "shepherd's crook",
+            "enemy": "drought",
+            "ally": "wise farmer",
+            "goal": "bountiful harvest",
+            "item": "seeds of hope",
+            "place": "golden meadow",
+        },
+        tile_weights={"CLEARING": 1.5, "VILLAGE": 1.4, "RIVER": 1.3, "FOREST": 1.2},
+        endings=["RETURN", "ACQUISITION", "RECOGNITION"],
+        mood="hopeful",
+    ),
+
+    "iyashikei": Genre(
+        name="Iyashikei",
+        description="Healing, gentle slice of life, inner peace",
+        palette={
+            "primary": "#E0FFFF",    # Light cyan
+            "secondary": "#FFF0F5",  # Lavender blush
+            "accent": "#FFE4E1",     # Misty rose
+            "danger": "#D3D3D3",     # Light gray
+            "water": "#AFEEEE",      # Pale turquoise
+            "magic": "#E6E6FA",      # Lavender
+        },
+        vocab={
+            "weapon": "gentle words",
+            "enemy": "inner turmoil",
+            "ally": "quiet friend",
+            "goal": "peace of mind",
+            "item": "handwritten letter",
+            "place": "quiet temple garden",
+        },
+        tile_weights={"TEMPLE": 1.5, "CLEARING": 1.4, "LAKE": 1.3, "VILLAGE": 1.2},
+        endings=["RETURN", "RECOGNITION", "RESCUE"],
+        mood="hopeful",
+    ),
+
+    "whimsical": Genre(
+        name="Whimsical",
+        description="Playful, lighthearted, delightfully absurd",
+        palette={
+            "primary": "#FF6347",    # Tomato
+            "secondary": "#40E0D0",  # Turquoise
+            "accent": "#FFD700",     # Gold
+            "danger": "#FF69B4",     # Hot pink
+            "water": "#00BFFF",      # Deep sky blue
+            "magic": "#DA70D6",      # Orchid
+        },
+        vocab={
+            "weapon": "rubber chicken",
+            "enemy": "grumpy cloud",
+            "ally": "talking cat",
+            "goal": "legendary treehouse",
+            "item": "enchanted teapot",
+            "place": "land of dreams",
+        },
+        tile_weights={"CLEARING": 1.4, "TOWER": 1.3, "FOREST": 1.3, "BRIDGE": 1.2},
+        endings=["RESCUE", "RECOGNITION", "RETURN"],
+        mood="hopeful",
+    ),
+
+    "coming_of_age": Genre(
+        name="Coming of Age",
+        description="Growth, discovery, finding one's place",
+        palette={
+            "primary": "#87CEEB",    # Sky blue
+            "secondary": "#FFA07A",  # Light salmon
+            "accent": "#FFD700",     # Gold (potential)
+            "danger": "#778899",     # Light slate gray
+            "water": "#ADD8E6",      # Light blue
+            "magic": "#DDA0DD",      # Plum
+        },
+        vocab={
+            "weapon": "courage",
+            "enemy": "self-doubt",
+            "ally": "true friend",
+            "goal": "finding one's path",
+            "item": "mentor's gift",
+            "place": "wide open road",
+        },
+        tile_weights={"ROAD": 1.5, "VILLAGE": 1.3, "BRIDGE": 1.3, "CLEARING": 1.2},
+        endings=["RECOGNITION", "RETURN", "BRANDING"],
+        mood="hopeful",
+    ),
+
+    "heartwarming": Genre(
+        name="Heartwarming",
+        description="Emotional connections, kindness, found family",
+        palette={
+            "primary": "#FFB6C1",    # Light pink
+            "secondary": "#FFFACD",  # Lemon chiffon
+            "accent": "#FF6347",     # Tomato (warm)
+            "danger": "#A9A9A9",     # Dark gray
+            "water": "#B0E0E6",      # Powder blue
+            "magic": "#FFE4B5",      # Moccasin
+        },
+        vocab={
+            "weapon": "act of kindness",
+            "enemy": "loneliness",
+            "ally": "unexpected friend",
+            "goal": "belonging",
+            "item": "shared meal",
+            "place": "home we make",
+        },
+        tile_weights={"VILLAGE": 1.5, "TAVERN": 1.4, "BRIDGE": 1.3, "CLEARING": 1.2},
+        endings=["RETURN", "RECOGNITION", "RESCUE"],
+        mood="hopeful",
+    ),
+
+    "mythic": Genre(
+        name="Mythic",
+        description="Ancient legends, divine wonder, eternal truths",
+        palette={
+            "primary": "#DAA520",    # Goldenrod
+            "secondary": "#F5F5DC",  # Beige
+            "accent": "#FF8C00",     # Dark orange
+            "danger": "#8B0000",     # Dark red
+            "water": "#4682B4",      # Steel blue
+            "magic": "#9932CC",      # Dark orchid
+        },
+        vocab={
+            "weapon": "divine gift",
+            "enemy": "ancient titan",
+            "ally": "wise oracle",
+            "goal": "Mount Olympus",
+            "item": "golden fleece",
+            "place": "realm of gods",
+        },
+        tile_weights={"TEMPLE": 1.5, "MOUNTAIN": 1.4, "RUINS": 1.3, "LAKE": 1.2},
+        endings=["VICTORY", "RECOGNITION", "BRANDING"],
+        mood="epic",
+    ),
+
+    "slice_of_life": Genre(
+        name="Slice of Life",
+        description="Everyday moments, quiet beauty, small joys",
+        palette={
+            "primary": "#F5F5DC",    # Beige
+            "secondary": "#FAFAD2",  # Light goldenrod yellow
+            "accent": "#FFA500",     # Orange
+            "danger": "#808080",     # Gray
+            "water": "#B0C4DE",      # Light steel blue
+            "magic": "#DDA0DD",      # Plum
+        },
+        vocab={
+            "weapon": "determination",
+            "enemy": "mundane troubles",
+            "ally": "childhood friend",
+            "goal": "tomorrow",
+            "item": "old photograph",
+            "place": "corner café",
+        },
+        tile_weights={"VILLAGE": 1.5, "TAVERN": 1.4, "ROAD": 1.3, "BRIDGE": 1.2},
+        endings=["RETURN", "RECOGNITION", "RESCUE"],
+        mood="hopeful",
+    ),
+
+    "luminous": Genre(
+        name="Luminous",
+        description="Radiant light, spiritual awakening, transcendence",
+        palette={
+            "primary": "#FFFACD",    # Lemon chiffon
+            "secondary": "#FFFFFF",  # White
+            "accent": "#FFD700",     # Gold
+            "danger": "#4B0082",     # Indigo (shadow)
+            "water": "#E0FFFF",      # Light cyan
+            "magic": "#FFE4B5",      # Moccasin
+        },
+        vocab={
+            "weapon": "inner light",
+            "enemy": "darkness within",
+            "ally": "spirit guide",
+            "goal": "enlightenment",
+            "item": "sacred flame",
+            "place": "temple of dawn",
+        },
+        tile_weights={"TEMPLE": 1.5, "TOWER": 1.4, "CLEARING": 1.3, "MOUNTAIN": 1.2},
+        endings=["RECOGNITION", "RETURN", "BRANDING"],
+        mood="hopeful",
+    ),
+
+    # =========================================================================
+    # ISEKAI / PORTAL FANTASY
+    # =========================================================================
+
+    "isekai": Genre(
+        name="Isekai",
+        description="Transported to another world, fish out of water",
+        palette={
+            "primary": "#9370DB",    # Medium purple (portal magic)
+            "secondary": "#87CEEB",  # Sky blue (new world)
+            "accent": "#FFD700",     # Gold (destiny)
+            "danger": "#DC143C",     # Crimson
+            "water": "#00CED1",      # Dark turquoise
+            "magic": "#DA70D6",      # Orchid
+        },
+        vocab={
+            "weapon": "mysterious power",
+            "enemy": "demon lord",
+            "ally": "cute companion",
+            "goal": "way back home",
+            "item": "summoning artifact",
+            "place": "fantasy kingdom",
+        },
+        tile_weights={"CASTLE": 1.4, "VILLAGE": 1.3, "TOWER": 1.3, "RUINS": 1.2},
+        endings=["RECOGNITION", "VICTORY", "RETURN"],
+        mood="hopeful",
+    ),
+
+    "isekai_dark": Genre(
+        name="Isekai (Dark)",
+        description="Trapped in a brutal other world, survival mode",
+        palette={
+            "primary": "#4B0082",    # Indigo
+            "secondary": "#2F4F4F",  # Dark slate
+            "accent": "#8B0000",     # Dark red
+            "danger": "#000000",     # Black
+            "water": "#191970",      # Midnight blue
+            "magic": "#800080",      # Purple
+        },
+        vocab={
+            "weapon": "cursed skill",
+            "enemy": "cruel god",
+            "ally": "fellow reincarnate",
+            "goal": "escape this hell",
+            "item": "forbidden grimoire",
+            "place": "death world",
+        },
+        tile_weights={"DUNGEON": 1.5, "RUINS": 1.4, "SWAMP": 1.3, "CAVE": 1.3},
+        endings=["VICTORY", "BRANDING", "PUNISHMENT"],
+        mood="dark",
+    ),
+
+    "reincarnation": Genre(
+        name="Reincarnation",
+        description="Reborn with memories, second chance at life",
+        palette={
+            "primary": "#E6E6FA",    # Lavender
+            "secondary": "#F0FFF0",  # Honeydew
+            "accent": "#FFB6C1",     # Light pink
+            "danger": "#778899",     # Light slate gray
+            "water": "#ADD8E6",      # Light blue
+            "magic": "#DDA0DD",      # Plum
+        },
+        vocab={
+            "weapon": "past life knowledge",
+            "enemy": "original fate",
+            "ally": "family this time",
+            "goal": "change destiny",
+            "item": "memory fragment",
+            "place": "familiar yet different",
+        },
+        tile_weights={"VILLAGE": 1.4, "CASTLE": 1.3, "CLEARING": 1.3, "ROAD": 1.2},
+        endings=["RECOGNITION", "RETURN", "RESCUE"],
+        mood="hopeful",
+    ),
+
+    "villainess": Genre(
+        name="Villainess",
+        description="Reborn as the villain, must avoid doom flags",
+        palette={
+            "primary": "#800020",    # Burgundy
+            "secondary": "#F5F5DC",  # Beige
+            "accent": "#FFD700",     # Gold
+            "danger": "#8B0000",     # Dark red
+            "water": "#B0C4DE",      # Light steel blue
+            "magic": "#9932CC",      # Dark orchid
+        },
+        vocab={
+            "weapon": "knowledge of the plot",
+            "enemy": "death flag",
+            "ally": "capture target",
+            "goal": "survival ending",
+            "item": "otome game knowledge",
+            "place": "noble academy",
+        },
+        tile_weights={"CASTLE": 1.5, "VILLAGE": 1.3, "TAVERN": 1.2, "ROAD": 1.2},
+        endings=["RESCUE", "RECOGNITION", "RETURN"],
+        mood="hopeful",
+    ),
+
+    "litrpg": Genre(
+        name="LitRPG",
+        description="Game-like world with stats, levels, and skills",
+        palette={
+            "primary": "#4169E1",    # Royal blue (UI)
+            "secondary": "#32CD32",  # Lime green (XP)
+            "accent": "#FFD700",     # Gold (loot)
+            "danger": "#FF0000",     # Red (HP)
+            "water": "#00BFFF",      # Deep sky blue
+            "magic": "#9400D3",      # Dark violet
+        },
+        vocab={
+            "weapon": "legendary drop",
+            "enemy": "raid boss",
+            "ally": "party member",
+            "goal": "max level",
+            "item": "rare skill book",
+            "place": "dungeon floor",
+        },
+        tile_weights={"DUNGEON": 1.5, "TOWER": 1.4, "CASTLE": 1.3, "CAVE": 1.3},
+        endings=["VICTORY", "ACQUISITION", "RECOGNITION"],
+        mood="epic",
+    ),
+
+    # =========================================================================
+    # MORE MOODS AND STYLES
+    # =========================================================================
+
+    "gothic": Genre(
+        name="Gothic",
+        description="Dark romance, ancient secrets, brooding atmosphere",
+        palette={
+            "primary": "#2C2C2C",    # Dark gray
+            "secondary": "#8B0000",  # Dark red
+            "accent": "#C0C0C0",     # Silver
+            "danger": "#000000",     # Black
+            "water": "#191970",      # Midnight blue
+            "magic": "#4B0082",      # Indigo
+        },
+        vocab={
+            "weapon": "family secret",
+            "enemy": "ancestral curse",
+            "ally": "mysterious stranger",
+            "goal": "forbidden truth",
+            "item": "ancient portrait",
+            "place": "crumbling manor",
+        },
+        tile_weights={"CASTLE": 1.5, "RUINS": 1.4, "DUNGEON": 1.3, "TOWER": 1.3},
+        endings=["RECOGNITION", "PUNISHMENT", "BRANDING"],
+        mood="dark",
+    ),
+
+    "wuxia": Genre(
+        name="Wuxia",
+        description="Martial arts, honor, jianghu adventures",
+        palette={
+            "primary": "#DC143C",    # Crimson
+            "secondary": "#F5DEB3",  # Wheat
+            "accent": "#FFD700",     # Gold
+            "danger": "#800000",     # Maroon
+            "water": "#4682B4",      # Steel blue
+            "magic": "#9932CC",      # Dark orchid
+        },
+        vocab={
+            "weapon": "legendary sword technique",
+            "enemy": "evil sect master",
+            "ally": "sworn brother",
+            "goal": "martial supremacy",
+            "item": "secret manual",
+            "place": "mountain sect",
+        },
+        tile_weights={"MOUNTAIN": 1.5, "TEMPLE": 1.4, "VILLAGE": 1.3, "FOREST": 1.2},
+        endings=["VICTORY", "RECOGNITION", "BRANDING"],
+        mood="epic",
+    ),
+
+    "xianxia": Genre(
+        name="Xianxia",
+        description="Cultivation, immortality, ascending to godhood",
+        palette={
+            "primary": "#E6E6FA",    # Lavender (qi)
+            "secondary": "#F0FFFF",  # Azure
+            "accent": "#FFD700",     # Gold (enlightenment)
+            "danger": "#8B0000",     # Dark red
+            "water": "#00CED1",      # Dark turquoise
+            "magic": "#9400D3",      # Dark violet
+        },
+        vocab={
+            "weapon": "divine artifact",
+            "enemy": "heavenly tribulation",
+            "ally": "dao companion",
+            "goal": "immortal ascension",
+            "item": "spirit stone",
+            "place": "immortal realm",
+        },
+        tile_weights={"MOUNTAIN": 1.5, "TEMPLE": 1.5, "TOWER": 1.3, "LAKE": 1.2},
+        endings=["RECOGNITION", "BRANDING", "VICTORY"],
+        mood="epic",
+    ),
+
+    "solarpunk_revolution": Genre(
+        name="Solarpunk Revolution",
+        description="Fighting for an eco-utopian future",
+        palette={
+            "primary": "#228B22",    # Forest green
+            "secondary": "#FFD700",  # Solar gold
+            "accent": "#FF6347",     # Tomato (fire of revolution)
+            "danger": "#696969",     # Dim gray (old world)
+            "water": "#00CED1",      # Turquoise
+            "magic": "#98FB98",      # Pale green
+        },
+        vocab={
+            "weapon": "truth and solidarity",
+            "enemy": "corporate overlord",
+            "ally": "commune collective",
+            "goal": "green future",
+            "item": "solar seed",
+            "place": "reclaimed city",
+        },
+        tile_weights={"VILLAGE": 1.5, "CLEARING": 1.4, "RUINS": 1.3, "BRIDGE": 1.2},
+        endings=["VICTORY", "RESCUE", "RECOGNITION"],
+        mood="hopeful",
+    ),
 }
 
 
@@ -492,6 +960,11 @@ class MultiPlot:
     # Ending nodes
     endings: List[int] = field(default_factory=list)
 
+    # Twist/false ending metadata
+    twist_type: TwistType = None
+    has_false_ending: bool = False
+    false_ending_count: int = 0
+
     def add_node(self, node: PlotNode) -> int:
         node.id = len(self.nodes)
         self.nodes.append(node)
@@ -501,6 +974,32 @@ class MultiPlot:
     def add_edge(self, from_id: int, to_id: int):
         if to_id not in self.edges[from_id]:
             self.edges[from_id].append(to_id)
+
+    def topological_sort(self) -> List[int]:
+        """Return nodes in topological order (Kahn's algorithm)"""
+        # Compute in-degrees
+        in_degree = {i: 0 for i in range(len(self.nodes))}
+        for from_id, to_list in self.edges.items():
+            for to_id in to_list:
+                in_degree[to_id] = in_degree.get(to_id, 0) + 1
+
+        # Start with nodes that have no incoming edges
+        queue = [i for i in range(len(self.nodes)) if in_degree[i] == 0]
+        result = []
+
+        while queue:
+            node_id = queue.pop(0)
+            result.append(node_id)
+
+            for successor in self.edges.get(node_id, []):
+                in_degree[successor] -= 1
+                if in_degree[successor] == 0:
+                    queue.append(successor)
+
+        # Check for cycles
+        if len(result) != len(self.nodes):
+            return []  # Cycle detected
+        return result
 
     def get_all_paths(self) -> List[List[int]]:
         """Get all possible paths through the plot"""
@@ -1069,6 +1568,9 @@ class AdvancedPlotGenerator:
         self.plot.add_edge(cont_id, final_id)
         self.plot.endings.append(final_id)
 
+        # Store twist type on plot
+        self.plot.twist_type = twist_type
+
         return True
 
     def generate_with_false_ending(self,
@@ -1139,6 +1641,10 @@ class AdvancedPlotGenerator:
                 break
 
         self.plot.endings.append(final_id)
+
+        # Store false ending metadata
+        self.plot.has_false_ending = True
+        self.plot.false_ending_count = num_false_endings
 
         return True
 
@@ -1298,6 +1804,16 @@ class AdvancedPlotGenerator:
                 if func == ProppFunc.RETURN:
                     self.plot.endings.append(node_id)
 
+        # Store metadata - check nodes for twist/false endings
+        twist_nodes = [n for n in self.plot.nodes if n.twist_type and n.twist_type != TwistType.NONE]
+        false_ending_nodes = [n for n in self.plot.nodes if n.is_false_ending]
+
+        if twist_nodes:
+            self.plot.twist_type = twist_nodes[0].twist_type
+        if false_ending_nodes:
+            self.plot.has_false_ending = True
+            self.plot.false_ending_count = len(false_ending_nodes)
+
         return total_nodes >= acts * nodes_per_act
 
     def get_summary(self) -> str:
@@ -1350,6 +1866,43 @@ class AdvancedPlotGenerator:
             lines.append(f"\n... and {len(paths) - 5} more paths")
 
         return '\n'.join(lines)
+
+    def verify_completability(self) -> Tuple[bool, str]:
+        """
+        Verify plot is completable.
+
+        Returns (is_valid, error_message).
+        """
+        if self.plot is None:
+            return False, "No plot generated"
+
+        # Check for cycles
+        order = self.plot.topological_sort()
+        if not order:
+            return False, "Plot contains cycles"
+
+        # Build node map
+        node_map = {n.id: n for n in self.plot.nodes}
+
+        # Simulate playing through
+        state = 0  # Current requirements met
+
+        for node_id in order:
+            node = node_map.get(node_id)
+            if node is None:
+                continue
+
+            # Check if requirements met
+            if (node.requires & state) != node.requires:
+                missing = node.requires & ~state
+                missing_names = [r.name for r in Requirement if r != Requirement.NONE and missing & r]
+                func_name = PROPP_NAMES.get(node.function, str(node.function))
+                return False, f"Node {node_id} ({func_name}) requires: {missing_names}"
+
+            # Update state
+            state |= node.provides
+
+        return True, "Plot is completable"
 
 
 # =============================================================================
